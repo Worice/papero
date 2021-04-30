@@ -1,57 +1,47 @@
 library(shiny)
+library(shinyFiles)
+library(rvest)
+library(xml2)
+library(selectr)
+library(stringr)
+library(jsonlite)
+library(DT)
 
 # Define UI for app that draws a histogram ----
-ui <- fluidPage(
-    
+ui <- pageWithSidebar(
     # App title ----
-    titlePanel("Hello Rizio!"),
-    
-    # Sidebar layout with input and output definitions ----
-    sidebarLayout(
-        
+    headerPanel("Porchi per sguardi!"),
         # Sidebar panel for inputs ----
         sidebarPanel(
+            textInput("txt", "Enter the text to display below:"),
+            textOutput("text"),
+            verbatimTextOutput("verb"),
             
-            # Input: Slider for the number of bins ----
-            sliderInput(inputId = "bins",
-                        label = "Number of bins:",
-                        min = 5,
-                        max = 50,
-                        value = 30)
-            
+            DT::dataTableOutput("mytable")
         ),
-        
         # Main panel for displaying outputs ----
-        mainPanel(
-            
-            # Output: Histogram ----
-            plotOutput(outputId = "distPlot")
-            
-        )
-    )
+       mainPanel(
+       )
 )
 
 server <- function(input, output) {
+       output$text <- renderText({ input$txt })
+       output$verb <- renderText({ input$txt })
+
     
-    # Histogram of the Old Faithful Geyser Data ----
-    # with requested number of bins
-    # This expression that generates a histogram is wrapped in a call
-    # to renderPlot to indicate that:
-    #
-    # 1. It is "reactive" and therefore should be automatically
-    #    re-executed when inputs (input$bins) change
-    # 2. Its output type is a plot
-    output$distPlot <- renderPlot({
-        
-        x    <- faithful$waiting
-        bins <- seq(min(x), max(x), length.out = input$bins + 1)
-        
-        hist(x, breaks = bins, col = "#75AADB", border = "orange",
-             xlab = "Waiting time to next eruption (in mins)",
-             main = "Histogram of waiting times")
-        
-    })
+    url_name <- 'https://scholar.google.com/scholar?hl=en&as_sdt=0%2C38&q=diabetes&btnG='
+    wp <- xml2::read_html(url_name)
+    # Extract raw data
+    titles <- rvest::html_text(rvest::html_nodes(wp, '.gs_rt'))
+    authors_years <- rvest::html_text(rvest::html_nodes(wp, '.gs_a'))
+    # Process data
+    authors <- gsub('^(.*?)\\W+-\\W+.*', '\\1', authors_years, perl = TRUE)
+    years <- gsub('^.*(\\d{4}).*', '\\1', authors_years, perl = TRUE)
+    # Make data frame
+    df <- data.frame(titles = titles, authors = authors, years = years, stringsAsFactors = FALSE)
     
+    # print search
+    output$mytable <- DT::renderDataTable({ df })
 }
 
 shinyApp(ui = ui, server = server)
